@@ -1,0 +1,171 @@
+Bootstrap: localimage
+From: unibev_cuda113_ubuntu2004_gcc10.sif
+
+%labels
+Author Anonymous
+Description MMDet3D v1.0.0rc5 on CUDA 11.3 / Torch 1.10 with spconv and flash-attn, see: https://github.com/open-mmlab/mmdetection3d/blob/v1.0.0rc5/docs/en/getting_started.md
+# opt/src is only used for install requirements. all work in /workspace with mmdetction3d mounted there
+
+%environment
+export PATH=/opt/conda/envs/mmdet3d_v100rc5/bin:/opt/conda/bin:$PATH
+export PYTHONPATH=/workspace/mmdet/mmdetection3d:$PYTHONPATH
+export MMCV_WITH_OPS=1
+export FORCE_CUDA=1
+
+%setup
+# Copy wheel from host into the image rootfs at a stable path
+install -D -m 0644 "flash_attn-0.2.2+cu113torch1.11.0-cp38-cp38-linux_x86_64.whl" \
+  "$SINGULARITY_ROOTFS/opt/wheels/flash_attn-0.2.2+cu113torch1.11.0-cp38-cp38-linux_x86_64.whl"
+
+%post
+apt-get update
+apt-get install -y --no-install-recommends \
+  wget ca-certificates git \
+  libtiff5 libjpeg-turbo8 libpng16-16 \
+  libgl1 libglib2.0-0 \
+  libsm6 libxext6 libxrender1 \
+  ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+apt-get install -y wget libtiff5 libgl1 libglib2.0-0 libegl1 libopengl0
+mkdir -p /opt/src
+
+# install conda and accept TOS
+wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh
+bash /tmp/miniconda.sh -b -p /opt/conda
+rm -f /tmp/miniconda.sh
+/opt/conda/bin/conda clean -afy
+# /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+# /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+/opt/conda/bin/conda config --system --add channels conda-forge
+/opt/conda/bin/conda config --system --set channel_priority strict
+/opt/conda/bin/conda config --system --set custom_channels.torch https://download.pytorch.org/whl/
+/opt/conda/bin/conda config --system --remove channels defaults || true
+
+# create conda environment
+/opt/conda/bin/conda create -y -n mmdet3d_v100rc5 --override-channels -c conda-forge git python=3.8 
+
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install --no-cache-dir \
+  torch==1.10.0+cu113 torchvision==0.11.0+cu113 torchaudio==0.10.0+cu113 \
+  -f https://download.pytorch.org/whl/torch_stable.html
+
+# create conda environment
+# /opt/conda/bin/conda create -y -n mmdet3d_v100rc5 -c conda-forge git python=3.8 
+# /opt/conda/bin/conda install -y -n mmdet3d_v100rc5 -c pytorch -c conda-forge \
+#  pytorch=1.10.0 torchvision=0.11.0 torchaudio=0.10.0 cudatoolkit=11.3
+
+# install best practices 
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install openmim
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install \
+  mmcv-full==1.6.0 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.10.0/index.html
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install mmdet==2.24.0 mmsegmentation==0.29.1
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install spconv-cu113==2.3.6
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install yapf==0.40.1
+
+# add wandb (for logging)
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install wandb
+
+# clone the repository to get all dependency installs
+cd /opt/src
+/opt/conda/envs/mmdet3d_v100rc5/bin/git clone --depth 1 --branch v1.0.0rc5 https://github.com/open-mmlab/mmdetection3d.git
+cd /opt/src/mmdetection3d
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install -v -e .
+
+# install the prebuilt wheel for flash attention
+/opt/conda/envs/mmdet3d_v100rc5/bin/pip install /opt/wheels/flash_attn-0.2.2+cu113torch1.11.0-cp38-cp38-linux_x86_64.whl
+
+# not needed no more since ~ will be mounted
+mkdir -p /opt/src/mmdetection3d/projects
+mkdir -p /opt/src/mmdetection3d/data/nuscenes
+mkdir -p /opt/src/mmdetection3d/work_dirs
+
+apt-get autoremove -y
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+
+
+
+# create verification script at /usr/local/bin/verify_mmdet3d.sh
+cat >/usr/local/bin/verify_mmdet3d.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENV_DIR="/opt/conda/envs/mmdet3d_v100rc5"
+PY="$ENV_DIR/bin/python"
+GIT="$ENV_DIR/bin/git"
+
+[ -d /workspace/mmdet/mmdetection3d ] || { echo "ERROR: bind missing. Expected /workspace/mmdet/mmdetection3d"; exit 2; }
+
+echo "=== Using conda env at: $ENV_DIR ==="
+echo "=== Checking compiler versions ==="
+if command -v nvcc >/dev/null 2>&1; then nvcc --version || true; else echo "nvcc not found (ok on CPU-only hosts)"; fi
+gcc --version || true
+
+echo "=== Checking Python version ==="
+$PY -c "import sys; print('Python', sys.version)"
+
+echo "=== Checking PyTorch and CUDA ==="
+$PY - <<'PY'
+import torch
+print('torch', torch.__version__)
+print('CUDA available:', torch.cuda.is_available())
+print('torch.version.cuda:', torch.version.cuda)
+PY
+
+echo "=== Checking torchvision ==="
+$PY -c "import torchvision; print('torchvision', torchvision.__version__)"
+
+echo "=== Checking torchaudio ==="
+$PY -c "import torchaudio; print('torchaudio', torchaudio.__version__)"
+
+echo "=== Checking mmdet3d ==="
+cd /workspace/mmdet/mmdetection3d
+$PY -c "import mmdet3d; print('mmdet3d', getattr(mmdet3d,'__version__','(no __version__)'))"
+
+echo "=== Checking spconv ==="
+$PY -c "import spconv; print('spconv', getattr(spconv,'__version__','(no __version__)'))"
+
+echo "=== Checking flash_attn ==="
+$PY - <<'PY'
+try:
+    import flash_attn
+    print('flash_attn imported successfully')
+except Exception as e:
+    print('flash_attn import failed:', e)
+PY
+
+echo "=== Checking yapf ==="
+$PY -c "import yapf; print('yapf', yapf.__version__)"
+
+echo "=== Verifying CMT plugin (flattened into MMDet3D) ==="
+if [ -d /workspace/mmdet/mmdetection3d/projects/mmdet3d_plugin ]; then
+  $PY - <<'PY'
+try:
+    from projects.mmdet3d_plugin import models, datasets
+    print('CMT plugins imported successfully')
+except Exception as e:
+    print('CMT plugins import failed:', e)
+PY
+else
+  echo "CMT plugin not found at /workspace/mmdet/mmdetection3d/projects/mmdet3d_plugin (skipping)"
+fi
+
+
+echo "=== GPU Info (requires --nv) ==="
+if command -v nvidia-smi >/dev/null 2>&1; then
+  nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv || true
+else
+  echo "nvidia-smi not available (no --nv or no NVIDIA runtime)."
+fi
+
+EOF
+chmod +x /usr/local/bin/verify_mmdet3d.sh
+
+
+%runscript
+# This is what runs when you do: apptainer run [--nv] image.sif  To check the versions and installs
+
+export PATH=/opt/conda/envs/mmdet3d_v100rc5/bin:/opt/conda/bin:$PATH
+export PYTHONPATH=/workspace/mmdet/mmdetection3d:$PYTHONPATH
+/usr/local/bin/verify_mmdet3d.sh 
+exec bash --noprofile --norc # this makes the sif go interactive after test run
+
