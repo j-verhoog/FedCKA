@@ -1,4 +1,5 @@
 # FedCKA: Representation-Guided Layer Personalization for Federated 3D Perception
+[📄 Paper (arXiv)](https://arxiv.org/abs/ARXIV_ID)
 
 Code accompanying **FedCKA: Representation-Guided Layer Personalization for Federated 3D Perception Across Driving Domains**.
 
