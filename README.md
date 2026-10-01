@@ -7,6 +7,14 @@ Code accompanying **FedCKA: Representation-Guided Layer Personalization for Fede
 
 **FedCKA** is a personalized federated learning method for 3D object detection under heterogeneous driving domains. It uses Centered Kernel Alignment (CKA) to measure layer-wise representation similarity, creating dynamic client-specific aggregation masks that determine which layers remain globally shared and which are locally personalized.
 
+<p align="center">
+  <img src="assets/fedcka_overview.png" width="950" alt="FedCKA method overview">
+</p>
+
+<p align="center">
+  <em>FedCKA dynamically identifies client-specific layers through representation similarity. After local training, layer-wise CKA scores determine which layers remain personalized and which are shared through global aggregation.</em>
+</p>
+
 ## Repository Structure
 
 ```text
@@ -45,6 +53,18 @@ Comparison of Federated Learning methods across nuScenes domains. Performance is
 | FedMC [6] | 0.56 | 0.56 | 0.58 | 0.47 | 0.32 | 0.56 |
 | FedSelect [7] | 0.59 | 0.51 | 0.56 | 0.40 | 0.34 | 0.55 |
 | **FedCKA (Ours)** | **0.65** | **0.63** | **0.64** | **0.59** | **0.50** | **0.63** |
+
+### Qualitative Results
+
+FedCKA particularly benefits challenging domains with strong distribution shifts. The example below shows predictions on the **Singapore night-rain** domain, comparing Ground Truth, FedAvg, and FedCKA.
+
+<p align="center">
+  <img src="assets/qualitative_comparison.jpg" width="950" alt="Qualitative comparison of Ground Truth, FedAvg, and FedCKA">
+</p>
+
+<p align="center">
+  <em>Qualitative comparison under severe domain shift. FedCKA recovers detections missed by the standard FedAvg baseline.</em>
+</p>
 
 
 ## Download Dependencies & Checkpoints (Hugging Face)
