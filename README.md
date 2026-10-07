@@ -1,5 +1,5 @@
 # FedCKA: Representation-Guided Layer Personalization for Federated 3D Perception
-[📄 Paper (arXiv)](https://arxiv.org/abs/ARXIV_ID)
+[📄 Paper (arXiv)](https://arxiv.org/abs/2610.01510)
 
 Code accompanying **FedCKA: Representation-Guided Layer Personalization for Federated 3D Perception Across Driving Domains**.
 
@@ -95,19 +95,19 @@ wget -c [https://huggingface.co/datasets/Anon-fedcka-ICRA/essentials/resolve/mai
 
 ## Paper & Citation
 
-Paper: [FedCKA: Representation-Guided Layer Personalization for Federated 3D Perception Across Driving Domains](https://arxiv.org/abs/ARXIV_ID)
+Paper: [FedCKA: Representation-Guided Layer Personalization for Federated 3D Perception Across Driving Domains](https://arxiv.org/abs/2610.01510)
 
 If you use this work, please cite:
 
 ```bibtex
 @misc{verhoog2026fedcka,
-  title={FedCKA: Representation-Guided Layer Personalization for Federated {3D} Perception Across Driving Domains},
-  author={Verhoog, Jolle and Burak Ünal, Ali and Caesar, Holger},
+  title={{FedCKA}: Representation-Guided Layer Personalization for Federated {3D} Perception Across Driving Domains},
+  author={Verhoog, Jolle and Ünal, Ali Burak and Caesar, Holger},
   year={2026},
-  eprint={ARXIV_ID},
+  eprint={2610.01510},
   archivePrefix={arXiv},
-  primaryClass={PRIMARY_CATEGORY},
-  url={https://arxiv.org/abs/ARXIV_ID}
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2610.01510}
 }
 ```
 
